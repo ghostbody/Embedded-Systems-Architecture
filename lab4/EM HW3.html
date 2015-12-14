@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EM HW3</title>
+<link rel="stylesheet" href="https://stackedit.io/res-min/themes/base.css" />
+<script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML"></script>
+</head>
+<body><div class="container"><h1 id="串口通信实验">串口通信实验</h1>
+
+<h3 id="13331314-叶嘉祺">13331314 叶嘉祺</h3>
+
+
+
+<h3 id="13331297-徐庆龙">13331297 徐庆龙</h3>
+
+<p><br></p>
+
+<h3 id="1pxa270内部提供多少个uart功能有什么区别">1．PXA270内部提供多少个UART，功能有什么区别。</h3>
+
+<p>PXA270 处理器有三个 UART,分别是:全功能 UART(FFUART),蓝牙 UART(BTUART),标准 UART ( STUART ) 。 <br>
+FFUART: 支持调制解调器控制能力。最大传输速率为921600 bps。 <br>
+BTUART: BTUART 是一个高速的UART，并且支持921,600 bps的波特率，同时还可以连接蓝牙模块。它支持的功能在功能列表，但只支持两个调制解调器控制引脚（NCTS和NRTs） <br>
+STUART: STUART支持所有功能的功能列表，但不支持调制解调器控制能力。最大传输速率为921600 bps。</p>
+
+<h3 id="2若需要设置ffuart的波特率为19200应如何设置分频器">2．若需要设置FFUART的波特率为19200，应如何设置分频器。</h3>
+
+<p>Divisor = 48 <br>
+BaudRate(bps) = 19200 <br>
+分频器高8位(DLH)设置为：0x0 <br>
+分频器低8位(DLL)设置为：0x30</p>
+
+<h3 id="3-把实验中的ffuart换成btuart试重写程序">3. 把实验中的FFUART换成BTUART，试重写程序。</h3>
+
+
+
+<pre class="prettyprint"><code class="language-c hljs "><span class="hljs-keyword">typedef</span> <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">long</span>   ulong;
+<span class="hljs-preprocessor">#define BTUART_BASE        0x40200000</span>
+<span class="hljs-preprocessor">#define BTRBR            (*((volatile ulong *)(BTUART_BASE+0x00)))</span>
+<span class="hljs-preprocessor">#define BTTHR              (*((volatile ulong *)(BTUART_BASE+0x00)))</span>
+<span class="hljs-preprocessor">#define BTIER           (*((volatile ulong *)(BTUART_BASE+0x04)))</span>
+<span class="hljs-preprocessor">#define BTIIR           (*((volatile ulong *)(BTUART_BASE+0x08)))</span>
+<span class="hljs-preprocessor">#define BTFCR           (*((volatile ulong *)(BTUART_BASE+0x08)))</span>
+<span class="hljs-preprocessor">#define BTLCR           (*((volatile ulong *)(BTUART_BASE+0x0C)))</span>
+<span class="hljs-preprocessor">#define BTMCR           (*((volatile ulong *)(BTUART_BASE+0x10)))</span>
+<span class="hljs-preprocessor">#define BTLSR           (*((volatile ulong *)(BTUART_BASE+0x14)))</span>
+<span class="hljs-preprocessor">#define BTMSR           (*((volatile ulong *)(BTUART_BASE+0x18)))</span>
+<span class="hljs-preprocessor">#define BTSPR           (*((volatile ulong *)(BTUART_BASE+0x1C)))</span>
+<span class="hljs-preprocessor">#define BTISR           (*((volatile ulong *)(BTUART_BASE+0x20)))</span>
+<span class="hljs-preprocessor">#define BTDLL           (*((volatile ulong *)(BTUART_BASE+0x00)))</span>
+<span class="hljs-preprocessor">#define BTDLH           (*((volatile ulong *)(BTUART_BASE+0x04)))</span>
+<span class="hljs-preprocessor">#define GPDR1              (*((volatile ulong *)(0x40E00010)))</span>
+<span class="hljs-preprocessor">#define GAFR1_L            (*((volatile ulong *)(0x40E0005C)))</span>
+
+
+<span class="hljs-keyword">void</span> SerialInit(<span class="hljs-keyword">void</span>){
+
+   GPDR1 = <span class="hljs-number">0x80</span>;
+   GAFR1_L = <span class="hljs-number">0x8010</span>;
+
+
+   BTLCR = <span class="hljs-number">0x00000003</span>;
+
+   BTFCR = <span class="hljs-number">0x00000007</span>;
+
+   BTIER = <span class="hljs-number">0x00000041</span>; 
+
+   BTMCR  = <span class="hljs-number">0x08</span>;  
+
+   BTLCR |= <span class="hljs-number">0x00000080</span>;
+
+   BTDLL = <span class="hljs-number">0x8</span>;  
+   BTLCR &amp;= <span class="hljs-number">0xFFFFFF7F</span>;
+
+
+   <span class="hljs-keyword">while</span>(! BTLSR &amp; <span class="hljs-number">0x00000040</span> );
+
+   <span class="hljs-keyword">return</span>;
+}
+
+
+<span class="hljs-keyword">void</span> SerialOutputByte(<span class="hljs-keyword">const</span> <span class="hljs-keyword">char</span> c) {
+
+
+    <span class="hljs-keyword">while</span> ((BTLSR &amp; <span class="hljs-number">0x00000020</span>) == <span class="hljs-number">0</span> );
+
+    BTTHR = ((ulong)c &amp; <span class="hljs-number">0xFF</span>);
+
+    <span class="hljs-keyword">if</span> (c==<span class="hljs-string">'\n'</span>) SerialOutputByte(<span class="hljs-string">'\r'</span>);
+}
+
+
+<span class="hljs-keyword">void</span> SerialOutputString(<span class="hljs-keyword">char</span> * str) {
+   <span class="hljs-keyword">int</span> i=<span class="hljs-number">0</span>;
+   <span class="hljs-keyword">while</span>(*(str+i)!=<span class="hljs-string">'\0'</span>)
+     {
+        SerialOutputByte(*(str+i));
+        i++;
+     }
+}
+
+
+
+<span class="hljs-keyword">int</span> SerialInputByte(<span class="hljs-keyword">char</span> *c){
+    <span class="hljs-keyword">if</span>((BTLSR &amp; <span class="hljs-number">0x00000001</span>)==<span class="hljs-number">0</span>){
+        <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+    } <span class="hljs-keyword">else</span> {
+        *c = BTRBR;
+        <span class="hljs-keyword">return</span> <span class="hljs-number">1</span>;
+    }
+}
+
+</code></pre></div></body>
+</html>

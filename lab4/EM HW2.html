@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EM HW2</title>
+<link rel="stylesheet" href="https://stackedit.io/res-min/themes/base.css" />
+<script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML"></script>
+</head>
+<body><div class="container"><h1 id="irq中断实验">IRQ中断实验</h1>
+
+<h3 id="13331314-叶嘉祺">13331314 叶嘉祺</h3>
+
+<h3 id="13331297-徐庆龙">13331297 徐庆龙</h3>
+
+<p><br></p>
+
+<h2 id="实验题目">实验题目</h2>
+
+<p>编写数据访问中止异常中断编写服务例程，并在程序中适当加入语句令程序产生这种中断.</p>
+
+<p><br></p>
+
+<h3 id="irq-中断实验">IRQ 中断实验</h3>
+
+<p>烧录原来的程序。实验现象:系统启动后，按 12345678 任意键,相应的八段数码管就会被点亮。 <br>
+实验的源代码原理。</p>
+
+<p>1、中断服务程序：</p>
+
+<pre class="prettyprint"><code class="language-c hljs "><span class="hljs-keyword">void</span> IRQ_Function(<span class="hljs-keyword">void</span>) {
+    <span class="hljs-comment">// function definition</span>
+}</code></pre>
+
+<p>2、中断处理方法：</p>
+
+
+
+<pre class="prettyprint"><code class=" hljs avrasm">    IMPORT  IRQ_Function
+    <span class="hljs-comment">;IMPORT ICMR</span>
+
+
+    EXPORT  IRQ_Handler
+
+
+    AREA IRQ_Handler,CODE,READONLY
+    <span class="hljs-comment">;****************************</span>
+    <span class="hljs-keyword">SUB</span> LR, LR, <span class="hljs-preprocessor">#0x4</span>
+    STMFD SP!,{<span class="hljs-built_in">R0</span>-<span class="hljs-built_in">R12</span>,LR}
+
+    MRS <span class="hljs-built_in">R4</span>, <span class="hljs-built_in">SPSR</span>
+
+    STMFD SP!,{<span class="hljs-built_in">R4</span>}
+
+    <span class="hljs-comment">;LDR R0,=ICMR</span>
+    <span class="hljs-comment">;LDR R1,[R0]</span>
+    <span class="hljs-comment">;BIC R1,R1,#0x01    ;Clean the kpdk</span>
+    <span class="hljs-comment">;BIC R1,R1,#800     ;Clean the kpmk</span>
+    <span class="hljs-comment">;STR R1,[R0]</span>
+
+    BL  IRQ_Function
+    LDMFD   SP!,{<span class="hljs-built_in">R4</span>}
+
+    <span class="hljs-comment">;LDR R0,=ICMR</span>
+    <span class="hljs-comment">;LDR R1,[R0]</span>
+    <span class="hljs-comment">;ORR R1,R1,#0x800</span>
+    <span class="hljs-comment">;ORR R1,R1,#0x01</span>
+    <span class="hljs-comment">;STR R1,[R0]</span>
+
+    LDR <span class="hljs-built_in">R0</span>,=<span class="hljs-number">0x41500000</span>
+    LDR <span class="hljs-built_in">R1</span>,[<span class="hljs-built_in">R0</span>]
+
+
+    MSR SPSR_cxsf, <span class="hljs-built_in">R4</span>
+
+    LDMFD SP!,{<span class="hljs-built_in">R0</span>-<span class="hljs-built_in">R12</span>,PC}^
+    <span class="hljs-comment">;*******************************    </span>
+
+
+    END</code></pre>
+
+<h2 id="根据irq中断模式开始实验">根据IRQ中断模式，开始实验</h2>
+
+<ol>
+<li><p>编写数据访问中止异常中断编写服务例程： <br>
+在.c之中添加一段数据异常中断的服务程序： <br>
+我们是定义，在发生异常的时候显示特定的数字。</p>
+
+<pre class="prettyprint"><code class="language-c hljs "><span class="hljs-keyword">void</span> DataAbort_Fuction(<span class="hljs-keyword">void</span>) {
+    LED_CS1 = <span class="hljs-number">0x2479</span>;
+}</code></pre></li>
+<li><p>修改数据异常中断的中断服务的地址：</p>
+
+<pre class="prettyprint"><code class=" hljs livecodeserver">Undefined_Handler   
+    B   Undefined_Handler
+
+SWI_Handler 
+    B   SWI_Handler
+
+Prefetch_Handler
+    B   Prefetch_Handler
+
+
+;DataAbort_Handler
+;   B   DataAbort_Handler
+; Comment <span class="hljs-keyword">it</span> <span class="hljs-built_in">to</span> enable </code></pre></li>
+<li><p>编写中断程序：</p>
+
+<pre class="prettyprint"><code class=" hljs avrasm">    IMPORT  DataAbort_Fuction
+    <span class="hljs-comment">;IMPORT ICMR</span>
+
+
+    EXPORT  DataAbort_Handler
+
+
+    AREA DataAbort_Handler,CODE,READONLY
+    <span class="hljs-comment">;****************************</span>
+    <span class="hljs-keyword">SUB</span> LR, LR, <span class="hljs-preprocessor">#0x8</span>
+    STMFD SP!,{<span class="hljs-built_in">R0</span>-<span class="hljs-built_in">R12</span>,LR}
+
+    MRS <span class="hljs-built_in">R4</span>, <span class="hljs-built_in">SPSR</span>
+
+    STMFD SP!,{<span class="hljs-built_in">R4</span>}
+
+    <span class="hljs-comment">;LDR R0,=ICMR</span>
+    <span class="hljs-comment">;LDR R1,[R0]</span>
+    <span class="hljs-comment">;BIC R1,R1,#0x01    ;Clean the kpdk</span>
+    <span class="hljs-comment">;BIC R1,R1,#800     ;Clean the kpmk</span>
+    <span class="hljs-comment">;STR R1,[R0]</span>
+
+    BL  DataAbort_Fuction
+    LDMFD   SP!,{<span class="hljs-built_in">R4</span>}
+
+    <span class="hljs-comment">;LDR R0,=ICMR</span>
+    <span class="hljs-comment">;LDR R1,[R0]</span>
+    <span class="hljs-comment">;ORR R1,R1,#0x800</span>
+    <span class="hljs-comment">;ORR R1,R1,#0x01</span>
+    <span class="hljs-comment">;STR R1,[R0]</span>
+
+    LDR <span class="hljs-built_in">R0</span>,=<span class="hljs-number">0x41500000</span>
+    LDR <span class="hljs-built_in">R1</span>,[<span class="hljs-built_in">R0</span>]
+
+
+    MSR SPSR_cxsf, <span class="hljs-built_in">R4</span>
+
+    LDMFD SP!,{<span class="hljs-built_in">R0</span>-<span class="hljs-built_in">R12</span>,PC}^
+    <span class="hljs-comment">;*******************************    </span>
+
+
+    END</code></pre></li>
+<li><p>实验结果： <br>
+<img src="https://github.com/ghostbody/Embedded-Systems-Architecture/blob/master/lab4/Result.jpg?raw=true" alt="" title=""></p></li>
+</ol></div></body>
+</html>
